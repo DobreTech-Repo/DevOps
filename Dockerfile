@@ -2,53 +2,55 @@ pipeline {
     agent any
 
     environment {
-        REMOTE_HOST = '10.0.0.186'          // IP address of the remote Docker host
-        CONTAINER_NAME = 'nginx-container'   // Name of the Nginx container
-        SSH_CREDENTIALS = 'your-ssh-credentials-id' // Jenkins SSH credentials ID
+        DOCKER_IMAGE = 'nginx:latest'
+        DOCKER_CONTAINER = 'mywebapp'
+        REMOTE_HOST = '10.0.0.245'
+        REMOTE_USER = 'dobre'
     }
 
     stages {
-        stage('Pull Nginx Image on Remote Host') {
+        stage('Clone Repository') {
+            steps {
+                git branch: 'master', url: 'https://github.com/Dobre237/dobrewebpage.git'
+            }
+        }
+
+        stage('Build Docker Image') {
             steps {
                 script {
-                    sshagent([SSH_CREDENTIALS]) {  // Use SSH credentials
-                        // Pull the Nginx image from Docker Hub on the remote host
-                        sh "ssh -o StrictHostKeyChecking=no dobre@$REMOTE_HOST 'docker pull nginx'"
-                    }
+                    // Build Docker image locally on Jenkins server
+                    sh 'docker build -t ${DOCKER_IMAGE} .'
                 }
             }
         }
 
-        stage('Stop and Remove Existing Container') {
+        stage('Push Docker Image to Remote Server') {
             steps {
                 script {
-                    sshagent([SSH_CREDENTIALS]) {  // Use SSH credentials
-                        // Stop and remove the existing Nginx container if it exists
-                        sh "ssh -o StrictHostKeyChecking=no dobre@$REMOTE_HOST 'docker stop $CONTAINER_NAME || true'"
-                        sh "ssh -o StrictHostKeyChecking=no dobre@$REMOTE_HOST 'docker rm $CONTAINER_NAME || true'"
-                    }
+                    // Save the image as a tar file, copy to remote server, and load it there
+                    sh 'docker save ${DOCKER_IMAGE} | bzip2 | ssh ${REMOTE_USER}@${REMOTE_HOST} "bunzip2 | docker load"'
                 }
             }
         }
 
-        stage('Run Nginx Container on Remote Host') {
+        stage('Run Docker Container on Remote Server') {
             steps {
                 script {
-                    sshagent([SSH_CREDENTIALS]) {  // Use SSH credentials
-                        // Run the Nginx container on the remote host, mapping port 8080 to 80
-                        sh "ssh -o StrictHostKeyChecking=no dobre@$REMOTE_HOST 'docker run -d --name $CONTAINER_NAME -p 8080:80 nginx'"
-                    }
+                    // Stop and remove any existing container with the same name
+                    sh '''
+                    ssh ${REMOTE_USER}@${REMOTE_HOST} "
+                    docker stop ${DOCKER_CONTAINER} || true &&
+                    docker rm ${DOCKER_CONTAINER} || true &&
+                    docker run -d --name ${DOCKER_CONTAINER} -p 80:80 ${DOCKER_IMAGE}
+                    "'''
                 }
             }
         }
     }
 
     post {
-        success {
-            echo "Nginx successfully deployed on the remote Docker host!"
-        }
-        failure {
-            echo "Failed to deploy Nginx on the remote Docker host."
+        always {
+            echo 'Cleanup if necessary...'
         }
     }
 }
