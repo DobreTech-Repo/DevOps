@@ -1,36 +1,8 @@
-pipeline {
-    agent any
+# Use the official nginx image as a base
+FROM nginx:alpine
 
-    environment {
-        DOCKER_HOST = "tcp://10.0.0.186:2375" // Docker remote host API
-    }
+# Copy the HTML file into the Nginx directory
+COPY index.html /usr/share/nginx/html/index.html
 
-    stages {
-        stage('Pull Nginx Image') {
-            steps {
-                script {
-                    // Pull the Nginx Docker image
-                    docker.image('nginx').pull()
-                }
-            }
-        }
-
-        stage('Run Nginx on Remote Server') {
-            steps {
-                script {
-                    // Run the Nginx container on the remote server
-                    docker.image('nginx').run('-d -p 8080:80')
-                }
-            }
-        }
-    }
-
-    post {
-        success {
-            echo 'Deployment Successful!'
-        }
-        failure {
-            echo 'Deployment Failed!'
-        }
-    }
-}
+# Expose port 80
+EXPOSE 80
