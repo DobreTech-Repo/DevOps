@@ -10,7 +10,7 @@ pipeline {
             steps {
                 script {
                     // Pull the latest Nginx image from Docker Hub on the remote Docker host
-                    sh "docker -H $10.0.0.186 pull nginx"
+                    sh "docker -H $DOCKER_HOST pull nginx"
                 }
             }
         }
@@ -19,8 +19,8 @@ pipeline {
             steps {
                 script {
                     // Stop and remove any running Nginx container on the remote Docker host
-                    sh "docker -H $10.0.0.186 stop nginx-container || true"
-                    sh "docker -H $10.0.0.186 rm nginx-container || true"
+                    sh "docker -H $DOCKER_HOST stop nginx-container || true"
+                    sh "docker -H $DOCKER_HOST rm nginx-container || true"
                 }
             }
         }
@@ -29,7 +29,7 @@ pipeline {
             steps {
                 script {
                     // Run a new Nginx container on the remote Docker host
-                    sh "docker -H $10.0.0.186 run -d --name nginx-container -p 8080:80 nginx"
+                    sh "docker -H $DOCKER_HOST run -d --name nginx-container -p 8080:80 nginx"
                 }
             }
         }
