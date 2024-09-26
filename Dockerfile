@@ -2,15 +2,16 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_HOST = "tcp://10.0.0.186:2375" // Remote Docker API URL
+        REMOTE_HOST = 'dobre@10.0.0.186'  // SSH login to the remote Docker host
+        CONTAINER_NAME = 'nginx-container'     // Name of the Nginx container
     }
 
     stages {
-        stage('Pull Nginx Image') {
+        stage('Pull Nginx Image on Remote Host') {
             steps {
                 script {
-                    // Pull the latest Nginx image from Docker Hub on the remote Docker host
-                    sh "docker -H $DOCKER_HOST pull nginx"
+                    // Pull the Nginx image from Docker Hub on the remote host using SSH
+                    sh "ssh $REMOTE_HOST 'docker pull nginx'"
                 }
             }
         }
@@ -18,18 +19,18 @@ pipeline {
         stage('Stop and Remove Existing Container') {
             steps {
                 script {
-                    // Stop and remove any running Nginx container on the remote Docker host
-                    sh "docker -H $DOCKER_HOST stop nginx-container || true"
-                    sh "docker -H $DOCKER_HOST rm nginx-container || true"
+                    // Stop and remove the existing Nginx container if it exists
+                    sh "ssh $REMOTE_HOST 'docker stop $CONTAINER_NAME || true'"
+                    sh "ssh $REMOTE_HOST 'docker rm $CONTAINER_NAME || true'"
                 }
             }
         }
 
-        stage('Run Nginx Container') {
+        stage('Run Nginx Container on Remote Host') {
             steps {
                 script {
-                    // Run a new Nginx container on the remote Docker host
-                    sh "docker -H $DOCKER_HOST run -d --name nginx-container -p 8080:80 nginx"
+                    // Run the Nginx container on the remote host, mapping port 8080 to 80
+                    sh "ssh $REMOTE_HOST 'docker run -d --name $CONTAINER_NAME -p 8080:80 nginx'"
                 }
             }
         }
@@ -37,7 +38,7 @@ pipeline {
 
     post {
         success {
-            echo "Nginx has been successfully deployed to the remote Docker host!"
+            echo "Nginx successfully deployed on the remote Docker host!"
         }
         failure {
             echo "Failed to deploy Nginx on the remote Docker host."
