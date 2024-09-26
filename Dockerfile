@@ -2,24 +2,39 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_HOST = "tcp://10.0.0.186:2375" // Docker remote host API
+        DOCKER_HOST = "tcp://10.0.0.186:2375" // Docker Remote API
     }
 
     stages {
-        stage('Pull Nginx Image') {
+        stage('Checkout from GitHub') {
+            steps {
+                // Clone the GitHub repository
+                git branch: 'main', url: 'https://github.com/Dobre237/dobrewebpage.git'
+            }
+        }
+
+        stage('Build Docker Image') {
             steps {
                 script {
-                    // Pull the Nginx Docker image
-                    docker.image('nginx').pull()
+                    // Build Docker image for the app
+                    dockerImage = docker.build("nginx")
                 }
             }
         }
 
-        stage('Run Nginx on Remote Server') {
+        stage('Deploy on Remote Docker') {
             steps {
                 script {
-                    // Run the Nginx container on the remote server
-                    docker.image('nginx').run('-d -p 8080:80')
+                    // Stop any running container
+                    try {
+                        sh "docker -H tcp://10.0.0.186:2375 stop my-container || true"
+                        sh "docker -H tcp://10.0.0.186:2375 rm my-container || true"
+                    } catch (Exception e) {
+                        echo "No existing container to stop."
+                    }
+                    
+                    // Run the container on the remote Docker server
+                    dockerImage.run('-d --name my-container -p 8080:80')
                 }
             }
         }
@@ -27,10 +42,11 @@ pipeline {
 
     post {
         success {
-            echo 'Deployment Successful!'
+            echo 'Deployed successfully to remote Docker server.'
         }
         failure {
-            echo 'Deployment Failed!'
+            echo 'Failed to deploy.'
         }
     }
 }
+
