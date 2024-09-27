@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = 'nginx:latest'
+        DOCKER_IMAGE = 'nginx'
         DOCKER_CONTAINER = 'mywebapp'
         REMOTE_HOST = '10.0.0.245'
         REMOTE_USER = 'dobre'
