@@ -13,9 +13,8 @@ pipeline {
             steps {
                 git branch: 'master', url: 'https://github.com/Dobre237/dobrewebpage.git'
             }
-        }
 
-        stages {
+    stages {
         stage('Pull NGINX Image') {
             steps {
                 script {
