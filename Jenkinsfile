@@ -15,34 +15,27 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
+        stages {
+        stage('Pull NGINX Image') {
             steps {
                 script {
-                    // Build Docker image locally on Jenkins server
-                    sh 'docker build -t ${DOCKER_IMAGE} .'
+                    // Pulling NGINX Docker image from Docker Hub
+                    sh """
+                    ssh -o StrictHostKeyChecking=no ${DOCKER_HOST} \\
+                    'docker pull ${IMAGE}'
+                    """
                 }
             }
         }
 
-        stage('Push Docker Image to Remote Server') {
+        stage('Deploy NGINX Container') {
             steps {
                 script {
-                    // Save the image as a tar file, copy to remote server, and load it there
-                    sh 'docker save ${DOCKER_IMAGE} | bzip2 | ssh ${REMOTE_USER}@${REMOTE_HOST} "bunzip2 | docker load"'
-                }
-            }
-        }
-
-        stage('Run Docker Container on Remote Server') {
-            steps {
-                script {
-                    // Stop and remove any existing container with the same name
-                    sh '''
-                    ssh ${REMOTE_USER}@${REMOTE_HOST} "
-                    docker stop ${DOCKER_CONTAINER} || true &&
-                    docker rm ${DOCKER_CONTAINER} || true &&
-                    docker run -d --name ${DOCKER_CONTAINER} -p 80:80 ${DOCKER_IMAGE}
-                    "'''
+                    // Run the NGINX container on the remote Docker host
+                    sh """
+                    ssh -o StrictHostKeyChecking=no ${DOCKER_HOST} \\
+                    'docker run -d --name ${CONTAINER_NAME} -p 80:80 ${IMAGE}'
+                    """
                 }
             }
         }
@@ -50,7 +43,22 @@ pipeline {
 
     post {
         always {
-            echo 'Cleanup if necessary...'
+            script {
+                // Check if the container is running on the remote Docker host
+                sh """
+                ssh -o StrictHostKeyChecking=no ${DOCKER_HOST} \\
+                'docker ps -f name=${CONTAINER_NAME}'
+                """
+            }
+        }
+        cleanup {
+            script {
+                // Optional cleanup to stop and remove the container after job completion
+                sh """
+                ssh -o StrictHostKeyChecking=no ${DOCKER_HOST} \\
+                'docker stop ${CONTAINER_NAME} && docker rm ${CONTAINER_NAME}'
+                """
+            }
         }
     }
 }
