@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         DOCKER_HOST_IP = '10.0.0.245'  // Replace with your remote Docker host IP
-        CONTAINER_NAME = 'nginx-webserver'
+        CONTAINER_NAME = 'nginx-app'
         IMAGE = 'nginx:latest'  // Public nginx image from Docker Hub
         GIT_REPO = 'https://github.com/Dobre237/dobrewebpage.git'  // Your GitHub repository URL
         DEPLOY_DIR = '/tmp/webcontent'  // Directory on the remote host for web content
@@ -15,7 +15,7 @@ pipeline {
             steps {
                 script {
                     // Clone the web page repository
-                    git url: "${GIT_REPO}", branch: 'main'
+                    git url: "${GIT_REPO}", branch: 'master'
                 }
             }
         }
