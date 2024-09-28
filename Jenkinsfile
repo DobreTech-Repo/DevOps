@@ -2,10 +2,11 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_HOST = 'dobre@10.0.0.245'  // Remote Docker host IP and user
+        DOCKER_HOST_IP = '10.0.0.245'  // Remote Docker host IP
         CONTAINER_NAME = 'nginx-container'
         IMAGE = 'nginx:latest'
         GIT_REPO = 'https://github.com/Dobre237/dobrewebpage.git'
+        SSH_CREDENTIALS_ID = 'your-ssh-credential-id'  // Replace with your Jenkins SSH credential ID
     }
 
     stages {
@@ -13,7 +14,7 @@ pipeline {
             steps {
                 script {
                     // Clone the web page repository
-                    git url: "${GIT_REPO}", branch: 'master'
+                    git url: "${GIT_REPO}", branch: 'main'
                 }
             }
         }
@@ -21,11 +22,13 @@ pipeline {
         stage('Pull NGINX Image') {
             steps {
                 script {
-                    // Pull NGINX Docker image on the remote Docker host
-                    sh """
-                    ssh -o StrictHostKeyChecking=no ${DOCKER_HOST} \\
-                    'docker pull ${IMAGE}'
-                    """
+                    // Use the SSH credentials to pull the NGINX image on the remote Docker host
+                    withCredentials([usernamePassword(credentialsId: SSH_CREDENTIALS_ID, usernameVariable: 'SSH_USER', passwordVariable: 'SSH_PASS')]) {
+                        sh """
+                        sshpass -p ${SSH_PASS} ssh -o StrictHostKeyChecking=no ${SSH_USER}@${DOCKER_HOST_IP} \\
+                        'docker pull ${IMAGE}'
+                        """
+                    }
                 }
             }
         }
@@ -33,16 +36,18 @@ pipeline {
         stage('Deploy NGINX with Web Content') {
             steps {
                 script {
-                    // Copy the web content to the remote server
-                    sh """
-                    scp -o StrictHostKeyChecking=no -r * ${DOCKER_HOST}:/tmp/webcontent
-                    """
+                    withCredentials([usernamePassword(credentialsId: SSH_CREDENTIALS_ID, usernameVariable: 'SSH_USER', passwordVariable: 'SSH_PASS')]) {
+                        // Copy the web content to the remote server
+                        sh """
+                        sshpass -p ${SSH_PASS} scp -o StrictHostKeyChecking=no -r * ${SSH_USER}@${DOCKER_HOST_IP}:/tmp/webcontent
+                        """
 
-                    // Run NGINX container on the remote host with mounted web content
-                    sh """
-                    ssh -o StrictHostKeyChecking=no ${DOCKER_HOST} \\
-                    'docker run -d --name ${CONTAINER_NAME} -p 80:80 -v /tmp/webcontent:/usr/share/nginx/html:ro ${IMAGE}'
-                    """
+                        // Run NGINX container on the remote host with mounted web content
+                        sh """
+                        sshpass -p ${SSH_PASS} ssh -o StrictHostKeyChecking=no ${SSH_USER}@${DOCKER_HOST_IP} \\
+                        'docker run -d --name ${CONTAINER_NAME} -p 80:80 -v /tmp/webcontent:/usr/share/nginx/html:ro ${IMAGE}'
+                        """
+                    }
                 }
             }
         }
@@ -52,19 +57,23 @@ pipeline {
         always {
             script {
                 // Check if the container is running on the remote Docker host
-                sh """
-                ssh -o StrictHostKeyChecking=no ${DOCKER_HOST} \\
-                'docker ps -f name=${CONTAINER_NAME}'
-                """
+                withCredentials([usernamePassword(credentialsId: SSH_CREDENTIALS_ID, usernameVariable: 'SSH_USER', passwordVariable: 'SSH_PASS')]) {
+                    sh """
+                    sshpass -p ${SSH_PASS} ssh -o StrictHostKeyChecking=no ${SSH_USER}@${DOCKER_HOST_IP} \\
+                    'docker ps -f name=${CONTAINER_NAME}'
+                    """
+                }
             }
         }
         cleanup {
             script {
-                // Optional: Stop and remove the container and cleanup files after job completion
-                sh """
-                ssh -o StrictHostKeyChecking=no ${DOCKER_HOST} \\
-                'docker stop ${CONTAINER_NAME} && docker rm ${CONTAINER_NAME} && rm -rf /tmp/webcontent'
-                """
+                // Optional cleanup to stop and remove the container after job completion
+                withCredentials([usernamePassword(credentialsId: SSH_CREDENTIALS_ID, usernameVariable: 'SSH_USER', passwordVariable: 'SSH_PASS')]) {
+                    sh """
+                    sshpass -p ${SSH_PASS} ssh -o StrictHostKeyChecking=no ${SSH_USER}@${DOCKER_HOST_IP} \\
+                    'docker stop ${CONTAINER_NAME} && docker rm ${CONTAINER_NAME} && rm -rf /tmp/webcontent'
+                    """
+                }
             }
         }
     }
