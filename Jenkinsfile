@@ -2,12 +2,12 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_HOST_IP = '10.0.0.245'  // Remote Docker host IP
+        DOCKER_HOST_IP = '10.0.0.245'  // Replace with your remote Docker host IP
         CONTAINER_NAME = 'nginx-webserver'
         IMAGE = 'nginx:latest'  // Public nginx image from Docker Hub
-        GIT_REPO = 'https://github.com/Dobre237/dobrewebpage.git'  // Your GitHub repository
-        DEPLOY_DIR = '/tmp/webcontent'  // Directory on remote host for web content
-        SSH_CREDENTIALS_ID = '2244'  // Replace with your Jenkins SSH credential ID
+        GIT_REPO = 'https://github.com/Dobre237/dobrewebpage.git'  // Your GitHub repository URL
+        DEPLOY_DIR = '/tmp/webcontent'  // Directory on the remote host for web content
+        SSH_CREDENTIALS_ID = '2244'  // Replace with your Jenkins SSH credentials ID
     }
 
     stages {
@@ -15,7 +15,7 @@ pipeline {
             steps {
                 script {
                     // Clone the web page repository
-                    git url: "${GIT_REPO}", branch: 'master'
+                    git url: "${GIT_REPO}", branch: 'main'
                 }
             }
         }
@@ -50,7 +50,7 @@ pipeline {
         cleanup {
             script {
                 withCredentials([usernamePassword(credentialsId: SSH_CREDENTIALS_ID, usernameVariable: 'SSH_USER', passwordVariable: 'SSH_PASS')]) {
-                    // Optional cleanup: Stop and remove the nginx container
+                    // Optional: Stop and remove the nginx container and cleanup the directory
                     sh """
                     sshpass -p ${SSH_PASS} ssh -o StrictHostKeyChecking=no ${SSH_USER}@${DOCKER_HOST_IP} \\
                     'docker stop ${CONTAINER_NAME} && docker rm ${CONTAINER_NAME} && rm -rf ${DEPLOY_DIR}'
