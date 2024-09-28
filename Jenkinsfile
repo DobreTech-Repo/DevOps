@@ -45,18 +45,4 @@ pipeline {
             }
         }
     }
-
-    post {
-        cleanup {
-            script {
-                withCredentials([usernamePassword(credentialsId: SSH_CREDENTIALS_ID, usernameVariable: 'SSH_USER', passwordVariable: 'SSH_PASS')]) {
-                    // Optional: Stop and remove the nginx container and cleanup the directory
-                    sh """
-                    sshpass -p ${SSH_PASS} ssh -o StrictHostKeyChecking=no ${SSH_USER}@${DOCKER_HOST_IP} \\
-                    'docker stop ${CONTAINER_NAME} && docker rm ${CONTAINER_NAME} && rm -rf ${DEPLOY_DIR}'
-                    """
-                }
-            }
-        }
-    }
 }
