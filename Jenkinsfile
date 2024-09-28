@@ -54,26 +54,31 @@ pipeline {
     }
 
     post {
-        always {
-            script {
-                // Check if the container is running on the remote Docker host
-                withCredentials([usernamePassword(credentialsId: SSH_CREDENTIALS_ID, usernameVariable: 'SSH_USER', passwordVariable: 'SSH_PASS')]) {
-                    sh """
-                    sshpass -p ${SSH_PASS} ssh -o StrictHostKeyChecking=no ${SSH_USER}@${DOCKER_HOST_IP} \\
-                    'docker ps -f name=${CONTAINER_NAME}'
-                    """
-                }
+    always {
+        script {
+            withCredentials([usernamePassword(credentialsId: SSH_CREDENTIALS_ID, usernameVariable: 'SSH_USER', passwordVariable: 'SSH_PASS')]) {
+                // Check container status
+                sh """
+                sshpass -p ${SSH_PASS} ssh -o StrictHostKeyChecking=no ${SSH_USER}@${DOCKER_HOST_IP} \\
+                'docker ps -f name=${CONTAINER_NAME}'
+                """
             }
         }
-        cleanup {
-            script {
-                // Optional cleanup to stop and remove the container after job completion
-                withCredentials([usernamePassword(credentialsId: SSH_CREDENTIALS_ID, usernameVariable: 'SSH_USER', passwordVariable: 'SSH_PASS')]) {
-                    sh """
-                    sshpass -p ${SSH_PASS} ssh -o StrictHostKeyChecking=no ${SSH_USER}@${DOCKER_HOST_IP} \\
-                    'docker stop ${CONTAINER_NAME} && docker rm ${CONTAINER_NAME} && rm -rf /tmp/webcontent'
-                    """
-                }
+    }
+    cleanup {
+        script {
+            withCredentials([usernamePassword(credentialsId: SSH_CREDENTIALS_ID, usernameVariable: 'SSH_USER', passwordVariable: 'SSH_PASS')]) {
+                // Stop and remove the container
+                sh """
+                sshpass -p ${SSH_PASS} ssh -o StrictHostKeyChecking=no ${SSH_USER}@${DOCKER_HOST_IP} \\
+                'docker stop ${CONTAINER_NAME} && docker rm ${CONTAINER_NAME}'
+                """
+                
+                // Remove the web content directory after the container is stopped
+                sh """
+                sshpass -p ${SSH_PASS} ssh -o StrictHostKeyChecking=no ${SSH_USER}@${DOCKER_HOST_IP} \\
+                'rm -rf /tmp/webcontent'
+                """
             }
         }
     }
