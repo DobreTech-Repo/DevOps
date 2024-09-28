@@ -20,18 +20,22 @@ pipeline {
             }
         }
 
-        stage('Deploy Web Content and Start NGINX') {
+        stage('Deploy and Run NGINX') {
             steps {
                 script {
                     withCredentials([usernamePassword(credentialsId: SSH_CREDENTIALS_ID, usernameVariable: 'SSH_USER', passwordVariable: 'SSH_PASS')]) {
-                        // Transfer cloned web content to the remote host
+                        // Create the deployment directory on the remote host
                         sh """
                         sshpass -p ${SSH_PASS} ssh -o StrictHostKeyChecking=no ${SSH_USER}@${DOCKER_HOST_IP} \\
                         'mkdir -p ${DEPLOY_DIR}'
+                        """
+
+                        // Copy the web content to the remote host
+                        sh """
                         sshpass -p ${SSH_PASS} scp -o StrictHostKeyChecking=no -r * ${SSH_USER}@${DOCKER_HOST_IP}:${DEPLOY_DIR}
                         """
 
-                        // Pull nginx image and run it with the mounted web content
+                        // Pull the nginx image and run it
                         sh """
                         sshpass -p ${SSH_PASS} ssh -o StrictHostKeyChecking=no ${SSH_USER}@${DOCKER_HOST_IP} \\
                         'docker pull ${IMAGE} && docker run -d --name ${CONTAINER_NAME} -p 80:80 -v ${DEPLOY_DIR}:/usr/share/nginx/html:ro ${IMAGE}'
@@ -49,7 +53,7 @@ pipeline {
                     // Optional cleanup: Stop and remove the nginx container
                     sh """
                     sshpass -p ${SSH_PASS} ssh -o StrictHostKeyChecking=no ${SSH_USER}@${DOCKER_HOST_IP} \\
-                    'docker stop ${CONTAINER_NAME} && docker rm ${CONTAINER_NAME}'
+                    'docker stop ${CONTAINER_NAME} && docker rm ${CONTAINER_NAME} && rm -rf ${DEPLOY_DIR}'
                     """
                 }
             }
