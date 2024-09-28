@@ -2,23 +2,26 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = 'nginx'
-        DOCKER_CONTAINER = 'mywebapp'
-        REMOTE_HOST = '10.0.0.245'
-        REMOTE_USER = 'dobre'
+        DOCKER_HOST = 'dobre@10.0.0.245'  // Remote Docker host IP and user
+        CONTAINER_NAME = 'nginx-container'
+        IMAGE = 'nginx:latest'
+        GIT_REPO = 'https://github.com/Dobre237/dobrewebpage.git'
     }
 
     stages {
-        stage('Clone Repository') {
+        stage('Clone Git Repository') {
             steps {
-                git branch: 'master', url: 'https://github.com/Dobre237/dobrewebpage.git'
+                script {
+                    // Clone the web page repository
+                    git url: "${GIT_REPO}", branch: 'master'
+                }
             }
+        }
 
-    stages {
         stage('Pull NGINX Image') {
             steps {
                 script {
-                    // Pulling NGINX Docker image from Docker Hub
+                    // Pull NGINX Docker image on the remote Docker host
                     sh """
                     ssh -o StrictHostKeyChecking=no ${DOCKER_HOST} \\
                     'docker pull ${IMAGE}'
@@ -27,13 +30,18 @@ pipeline {
             }
         }
 
-        stage('Deploy NGINX Container') {
+        stage('Deploy NGINX with Web Content') {
             steps {
                 script {
-                    // Run the NGINX container on the remote Docker host
+                    // Copy the web content to the remote server
+                    sh """
+                    scp -o StrictHostKeyChecking=no -r * ${DOCKER_HOST}:/tmp/webcontent
+                    """
+
+                    // Run NGINX container on the remote host with mounted web content
                     sh """
                     ssh -o StrictHostKeyChecking=no ${DOCKER_HOST} \\
-                    'docker run -d --name ${CONTAINER_NAME} -p 80:80 ${IMAGE}'
+                    'docker run -d --name ${CONTAINER_NAME} -p 80:80 -v /tmp/webcontent:/usr/share/nginx/html:ro ${IMAGE}'
                     """
                 }
             }
@@ -52,10 +60,10 @@ pipeline {
         }
         cleanup {
             script {
-                // Optional cleanup to stop and remove the container after job completion
+                // Optional: Stop and remove the container and cleanup files after job completion
                 sh """
                 ssh -o StrictHostKeyChecking=no ${DOCKER_HOST} \\
-                'docker stop ${CONTAINER_NAME} && docker rm ${CONTAINER_NAME}'
+                'docker stop ${CONTAINER_NAME} && docker rm ${CONTAINER_NAME} && rm -rf /tmp/webcontent'
                 """
             }
         }
