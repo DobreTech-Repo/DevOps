@@ -14,7 +14,7 @@ pipeline {
             steps {
                 script {
                     // Clone the web page repository
-                    git url: "${GIT_REPO}", branch: 'main'
+                    git url: "${GIT_REPO}", branch: 'master'
                 }
             }
         }
