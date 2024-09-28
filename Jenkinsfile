@@ -38,7 +38,7 @@ pipeline {
                         // Pull the nginx image and run it
                         sh """
                         sshpass -p ${SSH_PASS} ssh -o StrictHostKeyChecking=no ${SSH_USER}@${DOCKER_HOST_IP} \\
-                        'docker pull ${IMAGE} && docker run -d --name ${CONTAINER_NAME} -p 80:80 -v ${DEPLOY_DIR}:/usr/share/nginx/html:ro ${IMAGE}'
+                        'docker pull ${IMAGE} && docker run -d --name ${CONTAINER_NAME} -p 8080:80 -v ${DEPLOY_DIR}:/usr/share/nginx/html:ro ${IMAGE}'
                         """
                     }
                 }
