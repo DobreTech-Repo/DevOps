@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         DOCKER_HOST_IP = '10.0.0.245'  // Replace with your remote Docker host IP
-        CONTAINER_NAME = 'Dobre-app'
+        CONTAINER_NAME = 'Dobre-web'
         IMAGE = 'nginx:latest'  // Public nginx image from Docker Hub
         GIT_REPO = 'https://github.com/Dobre237/dobrewebpage.git'  // Your GitHub repository URL
         DEPLOY_DIR = '/tmp/webcontent'  // Directory on the remote host for web content
@@ -38,7 +38,7 @@ pipeline {
                         // Pull the nginx image and run it
                         sh """
                         sshpass -p ${SSH_PASS} ssh -o StrictHostKeyChecking=no ${SSH_USER}@${DOCKER_HOST_IP} \\
-                        'docker pull ${IMAGE} && docker run -d --name ${CONTAINER_NAME} -p 8090:80 -v ${DEPLOY_DIR}:/usr/share/nginx/html:ro ${IMAGE}'
+                        'docker pull ${IMAGE} && docker run -d --name ${CONTAINER_NAME} -p 8070:80 -v ${DEPLOY_DIR}:/usr/share/nginx/html:ro ${IMAGE}'
                         """
                     }
                 }
