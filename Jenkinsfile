@@ -6,7 +6,7 @@ pipeline {
         CONTAINER_NAME = 'nginx-container'
         IMAGE = 'nginx:latest'
         GIT_REPO = 'https://github.com/Dobre237/dobrewebpage.git'
-        SSH_CREDENTIALS_ID = 'your-ssh-credential-id'  // Replace with your Jenkins SSH credential ID
+        SSH_CREDENTIALS_ID = 'Test123'  // Replace with your Jenkins SSH credential ID
     }
 
     stages {
