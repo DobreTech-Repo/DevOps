@@ -4,9 +4,9 @@ pipeline {
     environment {
         DOCKER_HOST_IP = '10.0.0.245'  // Remote Docker host IP
         CONTAINER_NAME = 'nginx-container'
-        IMAGE = 'nginx:latest'
-        GIT_REPO = 'https://github.com/Dobre237/dobrewebpage.git'
-        SSH_CREDENTIALS_ID = 'Test123'  // Replace with your Jenkins SSH credential ID
+        IMAGE = 'nginx:latest'  // Public image from Docker Hub
+        GIT_REPO = 'https://github.com/Dobre237/dobrewebpage.git'  // Your GitHub repository
+        SSH_CREDENTIALS_ID = '2244'  // Replace with your Jenkins SSH credential ID
     }
 
     stages {
@@ -14,7 +14,7 @@ pipeline {
             steps {
                 script {
                     // Clone the web page repository
-                    git url: "${GIT_REPO}", branch: 'master'
+                    git url: "${GIT_REPO}", branch: 'main'
                 }
             }
         }
@@ -22,7 +22,7 @@ pipeline {
         stage('Pull NGINX Image') {
             steps {
                 script {
-                    // Use the SSH credentials to pull the NGINX image on the remote Docker host
+                    // Use SSH credentials to pull the NGINX image on the remote Docker host
                     withCredentials([usernamePassword(credentialsId: SSH_CREDENTIALS_ID, usernameVariable: 'SSH_USER', passwordVariable: 'SSH_PASS')]) {
                         sh """
                         sshpass -p ${SSH_PASS} ssh -o StrictHostKeyChecking=no ${SSH_USER}@${DOCKER_HOST_IP} \\
@@ -37,7 +37,7 @@ pipeline {
             steps {
                 script {
                     withCredentials([usernamePassword(credentialsId: SSH_CREDENTIALS_ID, usernameVariable: 'SSH_USER', passwordVariable: 'SSH_PASS')]) {
-                        // Copy the web content to the remote server
+                        // Copy the cloned web content to the remote server
                         sh """
                         sshpass -p ${SSH_PASS} scp -o StrictHostKeyChecking=no -r * ${SSH_USER}@${DOCKER_HOST_IP}:/tmp/webcontent
                         """
@@ -74,7 +74,4 @@ pipeline {
                     'docker stop ${CONTAINER_NAME} && docker rm ${CONTAINER_NAME} && rm -rf /tmp/webcontent'
                     """
                 }
-            }
-        }
-    }
-}
+    
