@@ -74,4 +74,7 @@ pipeline {
                     'docker stop ${CONTAINER_NAME} && docker rm ${CONTAINER_NAME} && rm -rf /tmp/webcontent'
                     """
                 }
-    
+            }
+        }
+    }
+}
