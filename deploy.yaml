@@ -1,0 +1,156 @@
+---
+- name: Deploy WAR to Apache Tomcat
+  hosts: app_server
+  become: yes
+  vars:
+    tomcat_version: 11.0.6
+    tomcat_user: tomcat
+    tomcat_group: tomcat
+    tomcat_install_dir: /opt/tomcat
+    tomcat_symlink: /opt/tomcat/latest
+    tomcat_download_url: "https://dlcdn.apache.org/tomcat/tomcat-11/v{{ tomcat_version }}/bin/apache-tomcat-{{ tomcat_version }}.tar.gz"
+    war_download_url: "http://13.60.239.5:8081/repository/dobretech-repo/com/example/myapp/1.0/myapp-1.0.war"
+    war_dest: "{{ tomcat_symlink }}/webapps/myapp.war"
+
+  tasks:
+    - name: Install Java
+      apt:
+        name: openjdk-17-jdk
+        state: present
+        update_cache: yes
+
+    - name: Create Tomcat group
+      group:
+        name: "{{ tomcat_group }}"
+
+    - name: Create Tomcat user
+      user:
+        name: "{{ tomcat_user }}"
+        group: "{{ tomcat_group }}"
+        shell: /bin/false
+        create_home: no
+
+    - name: Create Tomcat installation directory
+      file:
+        path: "{{ tomcat_install_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Download Tomcat
+      get_url:
+        url: "{{ tomcat_download_url }}"
+        dest: "/tmp/apache-tomcat-{{ tomcat_version }}.tar.gz"
+        mode: '0644'
+
+    - name: Extract Tomcat
+      unarchive:
+        src: "/tmp/apache-tomcat-{{ tomcat_version }}.tar.gz"
+        dest: "{{ tomcat_install_dir }}"
+        remote_src: yes
+        creates: "{{ tomcat_install_dir }}/apache-tomcat-{{ tomcat_version }}"
+
+    - name: Set permissions
+      file:
+        path: "{{ tomcat_install_dir }}/apache-tomcat-{{ tomcat_version }}"
+        owner: "{{ tomcat_user }}"
+        group: "{{ tomcat_group }}"
+        recurse: yes
+
+    - name: Create symlink to Tomcat
+      file:
+        src: "{{ tomcat_install_dir }}/apache-tomcat-{{ tomcat_version }}"
+        dest: "{{ tomcat_symlink }}"
+        state: link
+        force: true
+
+    - name: Ensure webapps directory exists
+      file:
+        path: "{{ tomcat_symlink }}/webapps"
+        state: directory
+        owner: "{{ tomcat_user }}"
+        group: "{{ tomcat_group }}"
+        mode: '0755'
+
+    - name: Download WAR file from Nexus
+      get_url:
+        url: "{{ war_download_url }}"
+        dest: "{{ war_dest }}"
+        mode: '0644'
+        timeout: 30
+
+    - name: Download JMX Prometheus Java Agent
+      get_url:
+        url: "https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.20.0/jmx_prometheus_javaagent-0.20.0.jar"
+        dest: "{{ tomcat_install_dir }}/jmx_prometheus_javaagent-0.20.0.jar"
+        mode: '0644'
+
+    - name: Create JMX Exporter config file
+      copy:
+        dest: "{{ tomcat_install_dir }}/jmx_exporter_config.yaml"
+        content: |
+          startDelaySeconds: 0
+          rules:
+            - pattern: 'java.lang:type=MemoryPool,name=(.*)'
+              name: jvm_memory_pool_usage_bytes
+              labels:
+                pool: "$1"
+              type: GAUGE
+            - pattern: 'java.lang:type=OperatingSystem'
+              name: jvm_system_cpu
+              type: GAUGE
+            - pattern: 'java.lang:type=Threading'
+              name: jvm_threads
+              type: GAUGE
+
+    - name: Set ownership of JMX files
+      file:
+        path: "{{ item }}"
+        owner: "{{ tomcat_user }}"
+        group: "{{ tomcat_group }}"
+        mode: '0644'
+      loop:
+        - "{{ tomcat_install_dir }}/jmx_exporter_config.yaml"
+        - "{{ tomcat_install_dir }}/jmx_prometheus_javaagent-0.20.0.jar"
+
+    - name: Create Tomcat systemd service
+      copy:
+        dest: /etc/systemd/system/tomcat.service
+        content: |
+          [Unit]
+          Description=Apache Tomcat Web Application Container
+          After=network.target
+
+          [Service]
+          Type=forking
+
+          Environment=JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+          Environment=CATALINA_PID={{ tomcat_symlink }}/temp/tomcat.pid
+          Environment=CATALINA_HOME={{ tomcat_symlink }}
+          Environment=CATALINA_BASE={{ tomcat_symlink }}
+          Environment='CATALINA_OPTS=-Xms512M -Xmx1024M -server -XX:+UseParallelGC -javaagent:{{ tomcat_install_dir }}/jmx_prometheus_javaagent-0.20.0.jar=7070:{{ tomcat_install_dir }}/jmx_exporter_config.yaml'
+
+          ExecStart={{ tomcat_symlink }}/bin/startup.sh
+          ExecStop={{ tomcat_symlink }}/bin/shutdown.sh
+
+          User={{ tomcat_user }}
+          Group={{ tomcat_group }}
+          UMask=0007
+          RestartSec=10
+          Restart=always
+
+          [Install]
+          WantedBy=multi-user.target
+      notify: Reload systemd
+
+    - name: Enable and start Tomcat service
+      systemd:
+        name: tomcat
+        enabled: yes
+        state: started
+        daemon_reload: yes
+
+  handlers:
+    - name: Reload systemd
+      command: systemctl daemon-reexec

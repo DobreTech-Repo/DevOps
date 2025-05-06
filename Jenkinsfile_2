@@ -1,0 +1,31 @@
+pipeline {
+    agent {
+        label 'ansiblenode'
+    }
+
+    stages {
+        stage('Checkout SCM') {
+            steps {
+                git branch: 'main', url: 'https://github.com/dobretechproject/maven-web-pro1.git'
+            }
+        }
+
+        stage('Run Playbook And Deploy') {
+            steps {
+                script {
+                    echo "Deploying WAR to Tomcat using Ansible playbook"
+                    sh 'ansible-playbook deploy.yaml --tags deploy'
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo '✅ Deployment successful!'
+        }
+        failure {
+            echo '❌ Deployment failed.'
+        }
+    }
+}

@@ -1,0 +1,35 @@
+pipeline {
+    agent any
+    tools {
+        maven 'maven3.9.9'
+    }
+    stages {
+        stage('GitClone') {
+            steps {
+                echo 'Cloning the latest application version'
+                git branch: 'main', url: 'https://github.com/dobretechproject/maven-web-pro1'
+            }
+        }
+        stage('Test+Build') {
+            steps {
+                sh 'echo Running unit testing'
+                sh 'mvn clean package'
+                echo 'Test successful and backup artifacts created'
+            }
+        }
+        stage('codeQuality') {
+            steps {
+                sh 'echo Running detail code analysis'
+                sh 'mvn sonar:sonar'
+                sh 'echo All conditions met/passed'
+            }
+        }
+        stage('upLoadArtifacts') {
+            steps {
+                sh 'echo Deploying artifacts'
+                sh 'mvn deploy'
+                sh 'echo backupArtifacts in nexus'
+            }
+        }
+    }
+}
