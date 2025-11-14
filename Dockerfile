@@ -1,19 +1,14 @@
-# Base Tomcat 10 + Java 21 image
-FROM tomcat:10.1.10-jdk21
+# Use Tomcat 9 with a Temurin JDK 21 base image
+FROM tomcat:9.0-jdk21-temurin
 
-# Install curl
-USER root
-RUN apt-get update && \
-    apt-get install -y curl && \
-    rm -rf /var/lib/apt/lists/*
-
-# Remove default apps
+# Remove default Tomcat apps
 RUN rm -rf /usr/local/tomcat/webapps/*
 
-# Keep pod running
-CMD ["catalina.sh", "run"]
+# Copy your WAR file into Tomcat
+COPY target/*.war /usr/local/tomcat/webapps/app.war
 
-# Expose Tomcat port
 EXPOSE 8080
+
+CMD ["catalina.sh", "run"]
 
 
