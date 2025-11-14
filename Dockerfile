@@ -1,14 +1,18 @@
-# Use official Tomcat base image
-FROM tomcat:10.1.10-jdk17
+# Use official Tomcat base image with Java 21
+FROM tomcat:10.1.10-jdk21
 
-# Remove default apps
+# Remove default Tomcat webapps
 RUN rm -rf /usr/local/tomcat/webapps/*
 
-# Copy WAR into Tomcat
-COPY myapp-20251114020321.war /usr/local/tomcat/webapps/ROOT.war
+# Install curl to allow downloading WARs inside the container (optional, for dynamic WAR fetch)
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
-# Expose Tomcat port
+# Set working directory
+WORKDIR /usr/local/tomcat
+
+# Expose default Tomcat port
 EXPOSE 8080
 
 # Start Tomcat
 CMD ["catalina.sh", "run"]
+
